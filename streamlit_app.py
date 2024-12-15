@@ -37,6 +37,24 @@ def plot_bar_chart(data, x_column, y_column, title):
     ax.set_title(title)
     st.pyplot(fig)
 
+# Función para el gráfico de sectores
+def plot_pie_chart(data, play_type_column, title):
+    # Calcular la frecuencia de cada tipo de jugada (pase o carrera)
+    play_counts = data[play_type_column].value_counts()
+
+    if play_counts.empty:
+        st.warning("No hay datos válidos para mostrar en el gráfico de sectores.")
+        return
+
+    # Crear el gráfico de sectores
+    fig, ax = plt.subplots()
+    ax.pie(play_counts, labels=play_counts.index, autopct='%1.1f%%', startangle=90, colors=["skyblue", "lightgreen"])
+    ax.axis("equal")  # Asegura que el gráfico sea un círculo
+    ax.set_title(title)
+
+    # Mostrar el gráfico en Streamlit
+    st.pyplot(fig)
+
 # Configuración principal de la aplicación
 def main():
 
@@ -68,6 +86,7 @@ def main():
     st.sidebar.header("Filtros")
     quarter = st.sidebar.selectbox("Cuarto", options=["Todos"] + sorted(data["QTR"].dropna().unique()), index=0)
     down = st.sidebar.selectbox("Seleccionar Down", options=["Todos"] + sorted(data["DN"].dropna().unique()), index=0)
+    field_zone = st.sidebar.selectbox("Seleccionar Zona del Campo", options=["Todas", "Redzone"], index=0)
 
     # Filtrar los datos en base a la selección
     filtered_data = data.copy()
@@ -76,6 +95,8 @@ def main():
         filtered_data = filtered_data[filtered_data["QTR"] == quarter]
     if down != "Todos":
         filtered_data = filtered_data[filtered_data["DN"] == down]
+    if field_zone == "Redzone":
+        filtered_data = filtered_data.query("`YARD LN` > 0 and `YARD LN` <= 35").reset_index()
     
     # Yardas totales
     df_yardas = filtered_data.query("ODK == 'O' & RESULT != 'Penalty'").reset_index()
@@ -96,7 +117,8 @@ def main():
         df_3down["GN/LS"] >= df_3down["DIST"], 1, 0
     )
     df_3down["pct"] = df_3down["completed"].sum() / df_3down["completed"].count() * 100
-    st.write("### 3 Down conversion: " + str(int(df_3down["pct"].max())) + "%")
+    if df_3down["pct"].count() > 0:
+        st.write("### 3 Down conversion: " + str(int(df_3down["pct"].max())) + "%")
 
     # Porcentaje de pase
     
@@ -104,16 +126,22 @@ def main():
         df_pases["RESULT"] == 'Complete', 1, 0
     )
     df_pases["pct"] = df_pases["completed"].sum() / df_pases["completed"].count() * 100
-    st.write("### Porcentaje de pases completados: " + str(int(df_pases["pct"].max())) + "%")
+    if df_pases["pct"].count() > 0:
+        st.write("### Porcentaje de pases completados: " + str(int(df_pases["pct"].max())) + "%")
 
     # YPA
     df_ypa = filtered_data.query("ODK == 'O' & RESULT != 'Penalty'").reset_index()
     ypa = df_ypa["GN/LS"].sum() / df_ypa["GN/LS"].count()
     st.write("### YPA: " + str(int(ypa)))
 
+    # Gráfico de sectores
+    play_type = filtered_data.query("`PLAY TYPE` == 'Pass' | `PLAY TYPE` == 'Run'").reset_index()
+    plot_pie_chart(play_type, play_type_column="PLAY TYPE", title="Porcentaje de Jugadas (Pase vs Carrera)")
+
+
     ## Yardas de pase
 
-    pbp_py_p = filtered_data.query("ODK == 'O' & `PLAY TYPE` == 'Pass' & RESULT != 'Penalty'").reset_index()
+    pbp_py_p = filtered_data.query("ODK == 'O' & `PLAY TYPE` == 'Pass' & RESULT != 'Penalty' & `GN/LS` > 0").reset_index()
     pbp_py_p_player = pbp_py_p.groupby(["PLAYER"]).agg(
         {"GN/LS": ["mean", "count", "sum"]}
     )
