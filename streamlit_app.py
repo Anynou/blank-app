@@ -54,7 +54,7 @@ def main():
         #     unsafe_allow_html=True
         # )
 
-    st.title("PENGUINS vs Hurricanes")
+    st.title("PENGUINS vs HURRICANES")
     st.write("### Resultado: 0 - 22 ")
     # st.sidebar.header("Configuración de Filtros")
 
