@@ -63,123 +63,109 @@ def main():
 
     # Cargar datos
     data = load_data(FILE_PATH)
+
+    # Filtros interactivos
+    st.sidebar.header("Filtros")
+    quarter = st.sidebar.selectbox("Cuarto", options=["Todos"] + sorted(data["QTR"].dropna().unique()), index=0)
+    down = st.sidebar.selectbox("Seleccionar Down", options=["Todos"] + sorted(data["DN"].dropna().unique()), index=0)
+
+    # Filtrar los datos en base a la selección
+    filtered_data = data.copy()
+
+    if quarter != "Todos":
+        filtered_data = filtered_data[filtered_data["QTR"] == quarter]
+    if down != "Todos":
+        filtered_data = filtered_data[filtered_data["DN"] == down]
     
-    if data is not None:
+    # Yardas totales
+    df_yardas = filtered_data.query("ODK == 'O' & RESULT != 'Penalty'").reset_index()
+    st.write("### Total yardas: " + str(int(df_yardas["GN/LS"].sum())))
 
-        # Yardas totales
-        df_yardas = data.query("ODK == 'O' & RESULT != 'Penalty'").reset_index()
-        st.write("### Total yardas: " + str(df_yardas["GN/LS"].sum().round(0)))
+    # Yardas total pase
+    df_pases = filtered_data.query("ODK == 'O' & `PLAY TYPE` == 'Pass' & RESULT != 'Penalty'").reset_index()
+    st.write("### Total yardas pase: " + str(int(df_pases["GN/LS"].sum())))
 
-        # Yardas total pase
-        df_pases = data.query("ODK == 'O' & `PLAY TYPE` == 'Pass' & RESULT != 'Penalty'").reset_index()
-        st.write("### Total yardas pase: " + str(df_pases["GN/LS"].sum().round(0)))
+    # Yardas total carrera
+    df_run = filtered_data.query("ODK == 'O' & `PLAY TYPE` == 'Run' & RESULT != 'Penalty'").reset_index()
+    st.write("### Total yardas carrera: " + str(int(df_run["GN/LS"].sum())))
 
-        # Yardas total carrera
-        df_run = data.query("ODK == 'O' & `PLAY TYPE` == 'Run' & RESULT != 'Penalty'").reset_index()
-        st.write("### Total yardas carrera: " + str(df_run["GN/LS"].sum().round(0)))
+    # Porcentaje 3 DN
+    df_3down = filtered_data.query("ODK == 'O' & RESULT != 'Penalty' & DN == 3").reset_index()
+    ## create filtering criteria
+    df_3down["completed"] = np.where(
+        df_3down["GN/LS"] >= df_3down["DIST"], 1, 0
+    )
+    df_3down["pct"] = df_3down["completed"].sum() / df_3down["completed"].count() * 100
+    st.write("### 3 Down conversion: " + str(int(df_3down["pct"].max())) + "%")
 
-        # Porcentaje 3 DN
-        df_3down = data.query("ODK == 'O' & RESULT != 'Penalty' & DN == 3").reset_index()
-        ## create filtering criteria
-        df_3down["completed"] = np.where(
-            df_3down["GN/LS"] >= df_3down["DIST"], 1, 0
-        )
-        df_3down["pct"] = df_3down["completed"].sum() / df_3down["completed"].count() * 100
-        st.write("### 3 Down conversion: " + str(df_3down["pct"].max().round(2)) + "%")
+    # Porcentaje de pase
+    
+    df_pases["completed"] = np.where(
+        df_pases["RESULT"] == 'Complete', 1, 0
+    )
+    df_pases["pct"] = df_pases["completed"].sum() / df_pases["completed"].count() * 100
+    st.write("### Porcentaje de pases completados: " + str(int(df_pases["pct"].max())) + "%")
 
-        # Porcentaje de pase
-        
-        df_pases["completed"] = np.where(
-            df_pases["RESULT"] == 'Complete', 1, 0
-        )
-        df_pases["pct"] = df_pases["completed"].sum() / df_pases["completed"].count() * 100
-        st.write("### Porcentaje de pases completados: " + str(df_pases["pct"].max().round(2)) + "%")
+    # YPA
+    df_ypa = filtered_data.query("ODK == 'O' & RESULT != 'Penalty'").reset_index()
+    ypa = df_ypa["GN/LS"].sum() / df_ypa["GN/LS"].count()
+    st.write("### YPA: " + str(int(ypa)))
 
-        ## Yardas de pase
+    ## Yardas de pase
 
-        pbp_py_p = data.query("ODK == 'O' & `PLAY TYPE` == 'Pass' & RESULT != 'Penalty'").reset_index()
-        pbp_py_p_player = pbp_py_p.groupby(["PLAYER"]).agg(
-            {"GN/LS": ["mean", "count", "sum"]}
-        )
-        ## reformat columns
-        pbp_py_p_player.columns = list(map("_".join, pbp_py_p_player.columns.values))
-        ## rename columns
-        pbp_py_p_player.rename(
-            columns={"GN/LS_mean": "ypa", "GN/LS_count": "recepciones", "GN/LS_sum": "total_yardas"}, inplace=True
-        )
-        with pd.ExcelWriter('extra.xlsx') as writer:  
-            pbp_py_p_player.to_excel(writer, sheet_name='pases_totales_player')
-        pbp_py_p_player_import = pd.read_excel(open('extra.xlsx', 'rb'), sheet_name='pases_totales_player')
-        file_path = 'extra.xlsx'
-        # Check if the file exists before attempting to delete it
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            print(f"The file {file_path} has been deleted.")
-        else:
-            print(f"The file {file_path} does not exist.")
-        pbp_py_p_player_import.sort_values(by=["total_yardas"], ascending=False)
-
-        #st.write("### Yardas de pase")
-        # Gráfico de barras
-        plot_bar_chart(pbp_py_p_player_import, "total_yardas", "PLAYER", "Yardas de pase")
-
-        # yardas de carrera
-
-        pbp_py_p = data.query("ODK == 'O' & `PLAY TYPE` == 'Run' & RESULT != 'Penalty'").reset_index()
-        pbp_py_p_player = pbp_py_p.groupby(["PLAYER"]).agg(
-            {"GN/LS": ["mean", "count", "sum"]}
-        )
-        ## reformat columns
-        pbp_py_p_player.columns = list(map("_".join, pbp_py_p_player.columns.values))
-        ## rename columns
-        pbp_py_p_player.rename(
-            columns={"GN/LS_mean": "ypa", "GN/LS_count": "carreras", "GN/LS_sum": "total_yardas"}, inplace=True
-        )
-        with pd.ExcelWriter('extra.xlsx') as writer:  
-            pbp_py_p_player.to_excel(writer, sheet_name='pases_totales_player')
-        pbp_py_p_player_import = pd.read_excel(open('extra.xlsx', 'rb'), sheet_name='pases_totales_player')
-        file_path = 'extra.xlsx'
-        # Check if the file exists before attempting to delete it
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            print(f"The file {file_path} has been deleted.")
-        else:
-            print(f"The file {file_path} does not exist.")
-        pbp_py_p_player_import.sort_values(by=["total_yardas"], ascending=False)
-
-        #st.write("### Yardas de pase")
-        # Gráfico de barras
-        plot_bar_chart(pbp_py_p_player_import, "total_yardas", "PLAYER", "Yardas de carrera")
-
-
-        # # Selección de columnas
-        # st.sidebar.subheader("Filtros:")
-        # if "Player" in data.columns and "Passing Yards" in data.columns:
-        #     min_yards = int(data["Passing Yards"].min())
-        #     max_yards = int(data["Passing Yards"].max())
-        #     selected_yards = st.sidebar.slider(
-        #         "Selecciona el rango de yardas de pase",
-        #         min_yards,
-        #         max_yards,
-        #         (min_yards, max_yards)
-        #     )
-
-        #     # Filtrado de datos
-        #     filtered_data = data[
-        #         (data["Passing Yards"] >= selected_yards[0]) &
-        #         (data["Passing Yards"] <= selected_yards[1])
-        #     ]
-
-        #     st.write("### Datos Filtrados:")
-        #     st.dataframe(filtered_data)
-
-        #     # Gráfico de barras
-        #     st.write("### Jugadores con más yardas de pase:")
-        #     plot_bar_chart(filtered_data, "Player", "Passing Yards", "Top 10 Jugadores - Yardas de Pase")
-        # else:
-        #     st.error("El archivo debe contener las columnas 'Player' y 'Passing Yards'.")
+    pbp_py_p = filtered_data.query("ODK == 'O' & `PLAY TYPE` == 'Pass' & RESULT != 'Penalty'").reset_index()
+    pbp_py_p_player = pbp_py_p.groupby(["PLAYER"]).agg(
+        {"GN/LS": ["mean", "count", "sum"]}
+    )
+    ## reformat columns
+    pbp_py_p_player.columns = list(map("_".join, pbp_py_p_player.columns.values))
+    ## rename columns
+    pbp_py_p_player.rename(
+        columns={"GN/LS_mean": "ypa", "GN/LS_count": "recepciones", "GN/LS_sum": "total_yardas"}, inplace=True
+    )
+    with pd.ExcelWriter('extra.xlsx') as writer:  
+        pbp_py_p_player.to_excel(writer, sheet_name='pases_totales_player')
+    pbp_py_p_player_import = pd.read_excel(open('extra.xlsx', 'rb'), sheet_name='pases_totales_player')
+    file_path = 'extra.xlsx'
+    # Check if the file exists before attempting to delete it
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"The file {file_path} has been deleted.")
     else:
-        st.error("No se pudo cargar el archivo CSV.")
+        print(f"The file {file_path} does not exist.")
+    pbp_py_p_player_import.sort_values(by=["total_yardas"], ascending=False)
+
+    #st.write("### Yardas de pase")
+    # Gráfico de barras
+    plot_bar_chart(pbp_py_p_player_import, "total_yardas", "PLAYER", "Yardas de pase")
+
+    # yardas de carrera
+
+    pbp_py_p = filtered_data.query("ODK == 'O' & `PLAY TYPE` == 'Run' & RESULT != 'Penalty'").reset_index()
+    pbp_py_p_player = pbp_py_p.groupby(["PLAYER"]).agg(
+        {"GN/LS": ["mean", "count", "sum"]}
+    )
+    ## reformat columns
+    pbp_py_p_player.columns = list(map("_".join, pbp_py_p_player.columns.values))
+    ## rename columns
+    pbp_py_p_player.rename(
+        columns={"GN/LS_mean": "ypa", "GN/LS_count": "carreras", "GN/LS_sum": "total_yardas"}, inplace=True
+    )
+    with pd.ExcelWriter('extra.xlsx') as writer:  
+        pbp_py_p_player.to_excel(writer, sheet_name='pases_totales_player')
+    pbp_py_p_player_import = pd.read_excel(open('extra.xlsx', 'rb'), sheet_name='pases_totales_player')
+    file_path = 'extra.xlsx'
+    # Check if the file exists before attempting to delete it
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"The file {file_path} has been deleted.")
+    else:
+        print(f"The file {file_path} does not exist.")
+    pbp_py_p_player_import.sort_values(by=["total_yardas"], ascending=False)
+
+    #st.write("### Yardas de pase")
+    # Gráfico de barras
+    plot_bar_chart(pbp_py_p_player_import, "total_yardas", "PLAYER", "Yardas de carrera")
 
 if __name__ == "__main__":
     main()
