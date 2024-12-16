@@ -1,3 +1,4 @@
 streamlit
 matplotlib
 openpyxl
+pymongo[srv]==3.12 

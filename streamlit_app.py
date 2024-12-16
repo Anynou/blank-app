@@ -3,12 +3,29 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+from pymongo import MongoClient
+from pandas import DataFrame
+import os
 
-# Función para cargar datos desde un archivo local
+import certifi
+ca = certifi.where()
+
 @st.cache_data
-def load_data(file_path):
+def load_data():
+    db_name='hurricanes'
+    coll_name='complete'
+    user=st.secrets['DB_USER']
+    password=st.secrets['DB_PASSWORD']
+    server=st.secrets['DB_SERVER']
+    uri = "mongodb+srv://" + user + ":" + password + "@" + server + "/?retryWrites=true&w=majority&appName=Hurricanes"
+
+    #Create a new client and connect to the server
+    client = MongoClient(uri, tlsCAFile=ca)
+    db = client[db_name]
+    coll = db[coll_name]
     try:
-        data = pd.read_csv(file_path)
+        data = DataFrame(list(coll.find({})))
+        data.drop(['_id'], axis=1, inplace=True)
         return data
     except Exception as e:
         st.error(f"Error al cargar el archivo: {e}")
@@ -62,25 +79,12 @@ def main():
     with col2:
         st.image("hurricanes.png", width=300)
 
-        # # Imagen y título centrados con tamaño ajustado
-        # st.markdown(
-        #     """
-        #     <div style="text-align: center;">
-        #         <h1 style="font-size: 36px;">Zaragoza Hurricanes</h1>
-        #     </div>
-        #     """,
-        #     unsafe_allow_html=True
-        # )
 
     st.title("PENGUINS vs HURRICANES")
     st.write("### Resultado: 0 - 22 ")
-    # st.sidebar.header("Configuración de Filtros")
-
-    # Ruta local del archivo CSV
-    FILE_PATH = "penguins-hurricanes.csv"  # Asegúrate de tener el archivo en esta ruta
 
     # Cargar datos
-    data = load_data(FILE_PATH)
+    data = load_data()
 
     # Filtros interactivos
     st.sidebar.header("Filtros")
