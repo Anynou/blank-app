@@ -79,10 +79,6 @@ def main():
     with col2:
         st.image("hurricanes.png", width=300)
 
-
-    st.title("PENGUINS vs HURRICANES")
-    st.write("### Resultado: 0 - 22 ")
-
     # Cargar datos
     data = load_data()
 
