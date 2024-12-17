@@ -91,6 +91,7 @@ def main():
     quarter = st.sidebar.selectbox("Cuarto", options=["Todos"] + sorted(data["QTR"].dropna().unique()), index=0)
     down = st.sidebar.selectbox("Seleccionar Down", options=["Todos"] + sorted(data["DN"].dropna().unique()), index=0)
     field_zone = st.sidebar.selectbox("Seleccionar Zona del Campo", options=["Todas", "Redzone"], index=0)
+    partido = st.sidebar.selectbox("Partido", options=["Todos"] + sorted(data["PARTIDO"].dropna().unique()), index=0)
 
     # Filtrar los datos en base a la selección
     filtered_data = data.copy()
@@ -101,6 +102,12 @@ def main():
         filtered_data = filtered_data[filtered_data["DN"] == down]
     if field_zone == "Redzone":
         filtered_data = filtered_data.query("`YARD LN` > 0 and `YARD LN` <= 35").reset_index()
+    if partido != "Todos":
+        filtered_data = filtered_data[filtered_data["PARTIDO"] == partido]
+        st.title(data["PARTIDO"].max())
+        st.write("### Resultado: " + data["RESULTADO"].max())
+    else:
+        st.title("Total")
     
     # Yardas totales
     df_yardas = filtered_data.query("ODK == 'O' & RESULT != 'Penalty'").reset_index()
