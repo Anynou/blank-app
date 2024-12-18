@@ -86,7 +86,7 @@ def main():
     st.sidebar.header("Filtros")
     quarter = st.sidebar.selectbox("Cuarto", options=["Todos"] + sorted(data["QTR"].dropna().unique()), index=0)
     down = st.sidebar.selectbox("Seleccionar Down", options=["Todos"] + sorted(data["DN"].dropna().unique()), index=0)
-    field_zone = st.sidebar.selectbox("Seleccionar Zona del Campo", options=["Todas", "Redzone"], index=0)
+    field_zone = st.sidebar.selectbox("Seleccionar Zona del Campo", options=["Todas", "Redzone", "Goal", "Medio"], index=0)
     partido = st.sidebar.selectbox("Partido", options=["Todos"] + sorted(data["PARTIDO"].dropna().unique()), index=0)
 
     # Filtrar los datos en base a la selección
@@ -98,6 +98,10 @@ def main():
         filtered_data = filtered_data[filtered_data["DN"] == down]
     if field_zone == "Redzone":
         filtered_data = filtered_data.query("`YARD LN` > 0 and `YARD LN` <= 35").reset_index()
+    elif field_zone == "Goal":
+        filtered_data = filtered_data.query("`YARD LN` >= 0 and `YARD LN` <= 10").reset_index()
+    elif field_zone == "Medio":
+        filtered_data = filtered_data.query("`YARD LN` > 36 | `YARD LN` < 0").reset_index()
     if partido != "Todos":
         filtered_data = filtered_data[filtered_data["PARTIDO"] == partido]
         st.title(data["PARTIDO"].max())
@@ -170,9 +174,16 @@ def main():
         print(f"The file {file_path} does not exist.")
     pbp_py_p_player_import.sort_values(by=["total_yardas"], ascending=False)
 
-    #st.write("### Yardas de pase")
+    st.write("### Pase")
+
     # Gráfico de barras
     plot_bar_chart(pbp_py_p_player_import, "total_yardas", "PLAYER", "Yardas de pase")
+
+    # pases totales
+    plot_bar_chart(pbp_py_p_player_import, "recepciones", "PLAYER", "Pases completados")
+
+    # yardas / pase
+    plot_bar_chart(pbp_py_p_player_import, "ypa", "PLAYER", "Yardas por pase")
 
     # yardas de carrera
 
@@ -198,9 +209,16 @@ def main():
         print(f"The file {file_path} does not exist.")
     pbp_py_p_player_import.sort_values(by=["total_yardas"], ascending=False)
 
-    #st.write("### Yardas de pase")
+    st.write("### Carrera")
+
     # Gráfico de barras
     plot_bar_chart(pbp_py_p_player_import, "total_yardas", "PLAYER", "Yardas de carrera")
+
+    # Carreras totales
+    plot_bar_chart(pbp_py_p_player_import, "carreras", "PLAYER", "Carreras totales")
+
+    # Yardas / carreras
+    plot_bar_chart(pbp_py_p_player_import, "ypa", "PLAYER", "Yardas por carrera")
 
 if __name__ == "__main__":
     main()
